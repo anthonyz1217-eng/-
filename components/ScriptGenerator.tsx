@@ -1,12 +1,16 @@
 
 import React, { useState, useRef } from 'react';
 import { Video, Sparkles, Send, Copy, RotateCcw, MapPin, Zap, User, UserX, Target, Upload, FileText, Edit, List, X, File } from 'lucide-react';
-import { CAR_MODELS } from '../constants';
+import { CarModel } from '../types';
 import { gemini } from '../services/geminiService';
 import { SYSTEM_PROMPTS } from '../lib/prompts';
 import ScriptTable from './ScriptTable';
 
-const ScriptGenerator: React.FC = () => {
+interface ScriptGeneratorProps {
+  carModels: CarModel[];
+}
+
+const ScriptGenerator: React.FC<ScriptGeneratorProps> = ({ carModels }) => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState('');
   const [customPoints, setCustomPoints] = useState('');
@@ -18,7 +22,7 @@ const ScriptGenerator: React.FC = () => {
   
   const [config, setConfig] = useState({
     type: '政策类 (30s内)',
-    carModelId: CAR_MODELS[0].id,
+    carModelId: carModels[0]?.id || 'other',
     targetInfo: '',
     policy: '首付0元提走奥迪A5L，置换还享14000元现金补贴',
     shootingScene: '门店静态',
@@ -26,7 +30,7 @@ const ScriptGenerator: React.FC = () => {
     rowCount: 5
   });
 
-  const selectedCar = CAR_MODELS.find(m => m.id === config.carModelId) || CAR_MODELS[0];
+  const selectedCar = carModels.find(m => m.id === config.carModelId) || carModels[0];
   const isOther = config.carModelId === 'other';
 
   const handleGenerate = async () => {
@@ -84,13 +88,12 @@ const ScriptGenerator: React.FC = () => {
       };
       reader.readAsText(file);
     } else if (file.type.startsWith('video/')) {
-      // For video, we extract a frame to send to Gemini as visual reference
       const url = URL.createObjectURL(file);
       if (videoRef.current) {
         videoRef.current.src = url;
         videoRef.current.onloadeddata = () => {
           if (videoRef.current && canvasRef.current) {
-            videoRef.current.currentTime = 1; // Capture frame at 1s
+            videoRef.current.currentTime = 1;
           }
         };
         videoRef.current.onseeked = () => {
@@ -141,27 +144,15 @@ const ScriptGenerator: React.FC = () => {
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-bold text-gray-500 uppercase">对标素材 (脚本/视频内容)</label>
                 {!uploadedFileData ? (
-                  <button 
-                    onClick={handleFileUploadClick}
-                    className="text-[10px] text-blue-600 font-bold flex items-center hover:underline"
-                  >
+                  <button onClick={handleFileUploadClick} className="text-[10px] text-blue-600 font-bold flex items-center hover:underline">
                     <Upload size={10} className="mr-1" /> 上传素材
                   </button>
                 ) : (
-                  <button 
-                    onClick={removeFile}
-                    className="text-[10px] text-red-500 font-bold flex items-center hover:underline"
-                  >
+                  <button onClick={removeFile} className="text-[10px] text-red-500 font-bold flex items-center hover:underline">
                     <X size={10} className="mr-1" /> 移除文件
                   </button>
                 )}
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handleFileChange} 
-                  className="hidden" 
-                  accept=".txt,.md,.mp4,.mov,.jpg,.jpeg,.png"
-                />
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".txt,.md,.mp4,.mov,.jpg,.jpeg,.png" />
               </div>
 
               {uploadedFileData && (
@@ -231,10 +222,7 @@ const ScriptGenerator: React.FC = () => {
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-2">主播形式</label>
                 <div className="flex space-x-1">
-                  {[
-                    { id: '有主播', icon: User },
-                    { id: '无主播', icon: UserX }
-                  ].map(h => (
+                  {[{ id: '有主播', icon: User }, { id: '无主播', icon: UserX }].map(h => (
                     <button
                       key={h.id}
                       onClick={() => setConfig({...config, hostType: h.id})}
@@ -275,7 +263,7 @@ const ScriptGenerator: React.FC = () => {
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase mb-2">车型选择</label>
               <div className="grid grid-cols-2 gap-2 max-h-[140px] overflow-y-auto pr-1 custom-scrollbar">
-                {CAR_MODELS.map(car => (
+                {carModels.map(car => (
                   <button
                     key={car.id}
                     onClick={() => setConfig({...config, carModelId: car.id})}
@@ -288,6 +276,16 @@ const ScriptGenerator: React.FC = () => {
                     {car.name}
                   </button>
                 ))}
+                <button
+                    onClick={() => setConfig({...config, carModelId: 'other'})}
+                    className={`p-2 text-[11px] rounded border transition-all truncate ${
+                      config.carModelId === 'other' 
+                        ? 'bg-orange-50 border-orange-500 text-orange-600 font-bold' 
+                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    自定义录入...
+                  </button>
               </div>
             </div>
 
@@ -333,13 +331,6 @@ const ScriptGenerator: React.FC = () => {
               <span>{loading ? 'AI 导演深度分镜中...' : '生成 10 组专业化脚本'}</span>
             </button>
           </div>
-          
-          <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-100 flex items-start space-x-2">
-            <Target size={16} className="text-blue-500 mt-0.5 shrink-0" />
-            <p className="text-[10px] text-blue-700 leading-relaxed">
-              **场景标注提示**：AI 将自动按标准术语（展厅口播/车头口播等）标注场景，并严格执行您的行数要求。
-            </p>
-          </div>
         </div>
       </div>
 
@@ -353,22 +344,12 @@ const ScriptGenerator: React.FC = () => {
               <span className="text-[10px] bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-bold">{config.shootingScene}</span>
               <span className="text-[10px] bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full font-bold">{config.rowCount} 行/脚本</span>
             </div>
-            <div className="flex space-x-2">
-              <button onClick={copyResult} className="p-1.5 hover:bg-gray-200 rounded text-gray-500" title="复制全部">
-                <Copy size={16} />
-              </button>
-              <button className="p-1.5 hover:bg-gray-200 rounded text-gray-500" title="发送至手机">
-                <Send size={16} />
-              </button>
-            </div>
           </div>
-          
           <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
             {!result && !loading && (
               <div className="flex flex-col items-center justify-center h-full text-gray-300">
                 <Video size={64} className="mb-4 opacity-20" />
-                <p>AI 导演已就绪，等待您的创作指令</p>
-                <p className="text-xs mt-2 opacity-60 italic">专业 · 干练 · 场景化设计</p>
+                <p>AI 导演已就绪，从左侧配置后开始创作</p>
               </div>
             )}
             {loading && (
@@ -381,28 +362,7 @@ const ScriptGenerator: React.FC = () => {
                 ))}
               </div>
             )}
-            {result && !loading && (
-              <div className="animate-in fade-in duration-500">
-                <ScriptTable content={result} />
-                
-                <div className="mt-12 p-5 bg-[#F8F9FA] border border-[#E4E5E7] rounded-xl">
-                  <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center">
-                    <Sparkles size={16} className="mr-2 text-blue-500" />
-                    拍摄建议
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-white p-3 rounded border border-gray-100 text-[11px] leading-relaxed">
-                      <p className="font-bold text-blue-600 mb-1">场景化标注</p>
-                      本次脚本已按标准场景进行模块化标注，并严格执行了 {config.rowCount} 行分镜要求。
-                    </div>
-                    <div className="bg-white p-3 rounded border border-gray-100 text-[11px] leading-relaxed">
-                      <p className="font-bold text-blue-600 mb-1">节奏把控</p>
-                      语速建议控制在 240字/分钟，利用快速切换场景（J-cut）来维持观众注意力。
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+            {result && !loading && <ScriptTable content={result} />}
           </div>
         </div>
       </div>

@@ -8,6 +8,13 @@ export enum AppView {
   SETTINGS = 'settings'
 }
 
+export interface UserProfile {
+  name: string;
+  avatar: string; // Base64 string
+  role: string;
+  organization: string;
+}
+
 export interface CarModel {
   id: string;
   name: string;
