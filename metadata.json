@@ -1,0 +1,8 @@
+{
+  "name": "新媒体助手",
+  "description": "Professional Feishu-style social media operation platform for Douyin and Xiaohongshu with AI-powered script generation, diagnosis, and copy optimization.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
